@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pac-Man Game</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+            background-color: black;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Pac-Man properties
+        let pacManX = 60;
+        let pacManY = 60;
+        let pacManRadius = 14;
+        let mouthOpen = 1;
+        // Pac-Man movement variables
+        let pacManSpeed = 2;
+        let pacManDirection = { x: 0, y: 0 };
+
+        // Pac-Man lives
+        let pacManLives = 3;
+
+        // Ghost properties
+        let ghosts = [
+            { x: 380, y: 380, speed: 1, color: 'red', direction: {x: 0, y: 0}, counter: 0 },
+            { x: 480, y: 280, speed: 1, color: 'pink', direction: {x: 0, y: 0}, counter: 0 },
+            { x: 250, y: 480, speed: 1, color: 'cyan', direction: {x: 0, y: 0}, counter: 0 },
+            { x: 480, y: 480, speed: 1, color: 'orange', direction: {x: 0, y: 0}, counter: 0 }
+        ];
+
+        // Event listener for keyboard input
+        document.addEventListener('keydown', function(event) {
+            switch (event.key) {
+                case 'ArrowLeft':
+                    pacManDirection = { x: -1, y: 0 };
+                    break;
+                case 'ArrowRight':
+                    pacManDirection = { x: 1, y: 0 };
+                    break;
+                case 'ArrowUp':
+                    pacManDirection = { x: 0, y: -1 };
+                    break;
+                case 'ArrowDown':
+                    pacManDirection = { x: 0, y: 1 };
+                    break;
+            }
+        });
+
+        // Maze layout
+        const maze = [
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1],
+            [1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
+            [1, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
+            [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
+            [1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1],
+            [1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1],
+            [1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1],
+            [1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1],
+            // ... more rows
+        ];
+
+        // Food layout
+        let food = [
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+            [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0],
+            [0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+            [0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+            [0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0],
+            [0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0],
+            [0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0],
+            [0, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0],
+            [0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0],
+            [0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0],
+            [0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+            [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+            [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+            // ... more rows
+        ];
+
+        function isFoodLeft(foodArray) {
+            return foodArray.some(row => row.includes(1));
+        }
+
+
+        function drawGhost(ctx, ghost) {
+            ctx.beginPath();
+            ctx.arc(ghost.x, ghost.y, pacManRadius, 0, 2 * Math.PI);
+            ctx.fillStyle = ghost.color;
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        function updateGhosts() {
+            ghosts.forEach(ghost => {
+                // Increment counter
+                ghost.counter++;
+
+                // Change direction less frequently, e.g., every 100 updates
+                if (ghost.counter >= 100) {
+                    let possibleDirections = [];
+                    if (!willCollide(ghost.x + ghost.speed, ghost.y, pacManRadius, maze, 40)) possibleDirections.push({ x: 1, y: 0 });
+                    if (!willCollide(ghost.x - ghost.speed, ghost.y, pacManRadius, maze, 40)) possibleDirections.push({ x: -1, y: 0 });
+                    if (!willCollide(ghost.x, ghost.y + ghost.speed, pacManRadius, maze, 40)) possibleDirections.push({ x: 0, y: 1 });
+                    if (!willCollide(ghost.x, ghost.y - ghost.speed, pacManRadius, maze, 40)) possibleDirections.push({ x: 0, y: -1 });
+
+                    if (possibleDirections.length > 0) {
+                        let newDirection = possibleDirections[Math.floor(Math.random() * possibleDirections.length)];
+                        ghost.direction = newDirection;
+                    }
+                    // Reset counter after changing direction
+                    ghost.counter = 0;
+                }
+
+                // Move ghost in current direction
+                let nextX = ghost.x + ghost.direction.x * ghost.speed;
+                let nextY = ghost.y + ghost.direction.y * ghost.speed;
+
+                // Wrap around the canvas
+                if (nextX > canvas.width) {
+                    nextX = -pacManRadius;
+                } else if (nextX < -pacManRadius) {
+                    nextX = canvas.width;
+                }
+
+                if (nextY > canvas.height) {
+                    nextY = -pacManRadius;
+                } else if (nextY < -pacManRadius) {
+                    nextY = canvas.height;
+                }
+
+                // Keep ghosts within canvas bounds and prevent them from entering walls
+                if (!willCollide(nextX, nextY, pacManRadius, maze, 40)) {
+                    ghost.x = nextX;
+                    ghost.y = nextY;
+                }
+            });
+        }
+
+        // Initialize ghost directions
+        ghosts.forEach(ghost => {
+            ghost.direction = { x: 0, y: 0 };
+        });
+
+
+        function checkCollision() {
+            ghosts.forEach(ghost => {
+                let dx = pacManX - ghost.x;
+                let dy = pacManY - ghost.y;
+                let distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < pacManRadius * 2) {
+                    pacManLives -= 1;
+                    if (pacManLives <= 0) {
+                        alert("Game Over");
+                        // Reset game or stop the game loop
+                    } else {
+                        // Reset Pac-Man position
+                        pacManX = 60;
+                        pacManY = 60;
+                    }
+                }
+            });
+        }
+
+
+        // Pac-Man drawing function
+        function drawPacMan(ctx, x, y, radius, mouthOpen, direction) {
+            ctx.beginPath();
+            
+            // Calculate start and end angles for the arc based on movement direction
+            let startAngle, endAngle;
+            if (direction.x === 1) { // Moving right
+                startAngle = 0.2 * Math.PI * mouthOpen;
+                endAngle = (2 - 0.2 * mouthOpen) * Math.PI;
+            } else if (direction.x === -1) { // Moving left
+                startAngle = (1 + 0.2 * mouthOpen) * Math.PI;
+                endAngle = (1 - 0.2 * mouthOpen) * Math.PI;
+            } else if (direction.y === 1) { // Moving down
+                startAngle = 0.7 * Math.PI * mouthOpen;
+                endAngle = (0.5 - 0.2 * mouthOpen) * Math.PI;
+            } else if (direction.y === -1) { // Moving up
+                startAngle = (1.8 - 0.2 * mouthOpen) * Math.PI;
+                endAngle = 1.3 * Math.PI * mouthOpen;
+            } else { // Default to right if no direction is set
+                startAngle = 0.2 * Math.PI * mouthOpen;
+                endAngle = (2 - 0.2 * mouthOpen) * Math.PI;
+            }
+
+            ctx.arc(x, y, radius, startAngle, endAngle);
+            ctx.lineTo(x, y);
+            ctx.fillStyle = "yellow";
+            ctx.fill();
+            ctx.closePath();
+        }
+
+
+        // Maze drawing function
+        function drawMaze(ctx, maze, blockSize) {
+            ctx.fillStyle = "blue";
+            for (let y = 0; y < maze.length; y++) {
+                for (let x = 0; x < maze[y].length; x++) {
+                    if (maze[y][x] === 1) {
+                        ctx.fillRect(x * blockSize, y * blockSize, blockSize, blockSize); // Reduced wall thickness
+                    }
+                }
+            }
+        }
+
+        
+
+        // Food drawing function
+        function drawFood(ctx, food, blockSize) {
+            ctx.fillStyle = "red";
+            for (let y = 0; y < food.length; y++) {
+                for (let x = 0; x < food[y].length; x++) {
+                    if (food[y][x] === 1) {
+                        ctx.beginPath();
+                        ctx.arc(x * blockSize + blockSize / 2, y * blockSize + blockSize / 2, blockSize / 8, 0, 2 * Math.PI); // Smaller food size
+                        ctx.fill();
+                    }
+                }
+            }
+        }
+
+        // Game update function
+        function updateGame() {
+            let nextX = pacManX + pacManDirection.x * pacManSpeed;
+            let nextY = pacManY + pacManDirection.y * pacManSpeed;
+
+            // Check for collision with walls
+            if (!willCollide(nextX, nextY, pacManRadius, maze, 40)) {
+                pacManX = nextX;
+                pacManY = nextY;
+            }
+
+            // Check for Pac-Man moving off canvas and reappear on the other side
+            if (pacManX > canvas.width) {
+                pacManX = -pacManRadius; // reappear on the left side
+            } else if (pacManX < -pacManRadius) {
+                pacManX = canvas.width; // reappear on the right side
+            }
+
+            if (pacManY > canvas.height) {
+                pacManY = -pacManRadius; // reappear on the top
+            } else if (pacManY < -pacManRadius) {
+                pacManY = canvas.height; // reappear at the bottom
+            }
+
+            // Check for food consumption
+            consumeFood(pacManX, pacManY, pacManRadius, food, 40);
+
+            // Update ghosts' position
+            updateGhosts();
+
+            // Check for collisions with ghosts
+            checkCollision();
+        }
+
+
+        function consumeFood(x, y, radius, food, blockSize) {
+            let foodX = Math.floor(x / blockSize);
+            let foodY = Math.floor(y / blockSize);
+
+            // Check if Pac-Man's center is over a food item
+            if (food[foodY] && food[foodY][foodX] === 1) {
+                food[foodY][foodX] = 0; // Consume the food
+            }
+        }
+
+        function willCollide(x, y, radius, maze, blockSize) {
+            // Calculate the indices of the maze array that Pac-Man is occupying
+            let left = Math.floor((x - radius) / blockSize);
+            let right = Math.floor((x + radius) / blockSize);
+            let top = Math.floor((y - radius) / blockSize);
+            let bottom = Math.floor((y + radius) / blockSize);
+
+            // Ensure the indices are within the bounds of the maze array
+            left = Math.max(0, Math.min(left, maze[0].length - 1));
+            right = Math.max(0, Math.min(right, maze[0].length - 1));
+            top = Math.max(0, Math.min(top, maze.length - 1));
+            bottom = Math.max(0, Math.min(bottom, maze.length - 1));
+
+            // Check if any of these positions are walls (1 in the maze array)
+            return maze[top][left] === 1 || maze[top][right] === 1 || 
+                   maze[bottom][left] === 1 || maze[bottom][right] === 1;
+        }
+
+
+        // Game render function
+        function renderGame() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawMaze(ctx, maze, 40);
+            drawFood(ctx, food, 40);
+            drawPacMan(ctx, pacManX, pacManY, pacManRadius, mouthOpen, pacManDirection);
+
+            // Draw ghosts
+            ghosts.forEach(ghost => drawGhost(ctx, ghost));
+        }
+
+
+        // Main game loop
+        function gameLoop() {
+            updateGame();
+            renderGame();
+
+            if (!isFoodLeft(food)) {
+                alert("Congratulations! You've cleared the board!");
+                resetGame();
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function resetGame() {
+            // Reset Pac-Man
+            pacManX = 60;
+            pacManY = 60;
+            pacManDirection = { x: 0, y: 0 };
+
+            // Reset ghosts
+            ghosts = [
+                { x: 380, y: 380, speed: 1, color: 'red', direction: {x: 0, y: 0}, counter: 0 },
+                { x: 480, y: 280, speed: 1, color: 'pink', direction: {x: 0, y: 0}, counter: 0 },
+                { x: 250, y: 480, speed: 1, color: 'cyan', direction: {x: 0, y: 0}, counter: 0 },
+                { x: 480, y: 480, speed: 1, color: 'orange', direction: {x: 0, y: 0}, counter: 0 }
+            ];
+
+            // Reset food
+            food = [
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+                [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0],
+                [0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+                [0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+                [0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0],
+                [0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0],
+                [0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0],
+                [0, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0],
+                [0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0],
+                [0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0],
+                [0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+                [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+                [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+                // ... more rows
+            ];
+
+            pacManLives = 3;
+        }
+
+
+
+
+        // Start the game loop
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>
